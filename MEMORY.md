@@ -1,0 +1,148 @@
+# Kheti AI - Project Memory
+
+This document captures the accumulated knowledge, decisions, and lessons learned during the development and operation of Kheti AI. It serves as institutional memory so that anyone (or any AI assistant) working on this project can pick up context quickly.
+
+---
+
+## Architecture Decisions
+
+### Why LiteLLM?
+LiteLLM was chosen as the orchestration layer because it provides an OpenAI-compatible proxy out of the box, supports 100+ LLM providers, handles routing/fallback natively, and runs lightweight enough for a Raspberry Pi. Alternatives considered: OpenRouter (cloud-only, no self-host), vLLM (inference-only, no routing), and custom proxy (too much maintenance).
+
+### Why Ollama for Local Inference?
+Ollama provides the simplest path to running models locally across heterogeneous hardware. It handles model downloads, quantization, GPU/CPU detection, and serves a clean REST API. The tradeoff is less fine-grained control over inference parameters compared to vLLM or llama.cpp directly, but the operational simplicity wins for a multi-machine homelab.
+
+### Why Pi5L as Orchestrator?
+The orchestrator needs to be always-on, low-power, and reliable. A Raspberry Pi 5 draws ~5W idle, runs Docker adequately for a proxy workload, and costs nothing to operate 24/7. It does NOT run inference — it only routes requests to machines that do.
+
+### Why Tailscale?
+Tailscale provides zero-config encrypted networking across all machines without opening firewall ports. The `tailscale serve` feature gives us HTTPS certificates automatically. All inter-machine communication goes through Tailscale's WireGuard mesh, so nothing is exposed to the public internet.
+
+---
+
+## Infrastructure Map
+
+```
+Orchestrator: Pi5L
+  - Tailscale: 100.77.119.64
+  - Local: 10.0.0.111
+  - Hostname: pi5l.tailf49db2.ts.net
+  - Endpoint: https://pi5l.tailf49db2.ts.net/llm
+
+Primary GPU: Akshat-PC
+  - RTX 5090, 192GB RAM, i9-12900K
+  - Tailscale: 100.111.115.92
+  - Local: 10.0.0.5
+  - Hostname: akshat-pc.tailf49db2.ts.net
+  - Ollama: http://100.111.115.92:11434
+  - Models: 54 configured (XL code, vision, reasoning, image gen, voice)
+```
+
+---
+
+## Naming Convention
+
+The model naming scheme `SIZE-LOCATION-COST-MODEL_NAME` was deliberately designed for:
+1. **Instant readability** — you can tell at a glance if a model is large/small, local/cloud, free/paid
+2. **Sortability** — models sort logically in listings
+3. **Alias compatibility** — short aliases (`code`, `fast`, `vision`) map to the verbose names
+
+Size tiers: XS (<3B), S (3-8B), M (8-20B), L (20-40B), XL (40B+)
+
+---
+
+## Known Issues and Gotchas
+
+### Config File Naming
+The docker-compose mounts `litellm_config.yaml` but the actual file in the repo is `litellm_config_production.yaml`. The deploy script should rename or symlink. If LiteLLM fails to start with "config not found", check this mapping.
+
+### Commented-Out Machine Templates
+Most machines in `litellm_config_production.yaml` are commented out with placeholder IPs like `[TO_BE_CONFIGURED]`. When uncommenting, replace ALL placeholder IPs for that machine section, not just the first one.
+
+### OLLAMA_MAX_LOADED_MODELS
+Akshat-PC is configured for 3 max loaded models. If you request a 4th model, Ollama will unload the least recently used one. This causes a cold-start delay (~10-30s for large models). Consider preloading critical models.
+
+### Redis Caching
+Cache TTL is set to 1 hour (3600s). Identical prompts within that window return cached responses. This saves cloud API costs but can confuse testing. Clear cache with: `docker exec litellm-redis redis-cli FLUSHALL`
+
+### Cloud Model IDs
+The config uses specific dated model IDs for Anthropic (e.g., `claude-opus-4-5-20251101`). These need to be updated when Anthropic releases new versions. LiteLLM may or may not handle automatic aliasing.
+
+---
+
+## Operational Patterns
+
+### Updating Models
+When Ollama releases new model versions:
+```bash
+ssh user@akshat-pc
+ollama pull qwen2.5-coder:32b   # re-pulls latest
+docker restart litellm-proxy     # on Pi5L to pick up changes
+```
+
+### Monitoring Health
+```bash
+# Quick check
+curl https://pi5l.tailf49db2.ts.net/llm/health
+
+# Check which models are loaded on Ollama
+curl http://100.111.115.92:11434/api/tags
+
+# Check LiteLLM logs for routing decisions
+docker logs litellm-proxy --tail 50
+```
+
+### Cost Tracking
+Monthly budget is set to $100 in the config. Cloud API usage is tracked in PostgreSQL and visible in the admin UI at `/ui`. Local model usage is free but tracked for analytics.
+
+---
+
+## Routing Weights
+
+Current weights reflect a "local-first" philosophy:
+- Speed: 40% — fast responses preferred
+- Quality: 35% — but not at the expense of accuracy
+- Cost: 25% — local (free) preferred over cloud (paid)
+
+These can be adjusted in `litellm_config_production.yaml` under `router_settings.routing_strategy_args`.
+
+---
+
+## Security Notes
+
+- Master key format: `sk-kheti-<random hex>` — generated by setup.sh
+- Default admin UI credentials: `admin/admin` — MUST be changed in production
+- PostgreSQL default password: `litellm_password` — MUST be changed in production
+- `.env` is gitignored and contains all secrets
+- Tailscale provides the network security layer — no ports are exposed publicly
+
+---
+
+## Future Plans
+
+### Short-term
+- Add Old-Office-PC (RTX 2080S) as backup GPU node
+- Set up Grafana dashboards for model latency and usage
+- Fine-tune routing weights based on real usage data
+
+### Medium-term
+- Bring online 3x high-RAM CPU machines (GTR9, EVO-X2, MS-S1) for XL CPU inference
+- Experiment with NPU acceleration on SER9 and Atomman
+- Add Mac Mini M4 Pro for Metal-optimized workloads
+
+### Long-term
+- Automated model updates across all machines
+- Self-healing: detect failed nodes and reroute automatically
+- Multi-tenant support with per-user API keys and budgets
+- Custom fine-tuned models deployed through the mesh
+
+---
+
+## Changelog
+
+| Date | Change |
+|------|--------|
+| Initial | Repository created with full config for Akshat-PC (54 models) + templates for 18 additional machines |
+| Initial | Docker stack: LiteLLM + PostgreSQL + Redis + optional Grafana/Prometheus |
+| Initial | Tailscale integration for secure remote access |
+| Initial | Cloud fallback: Claude, GPT, Gemini, Perplexity |
