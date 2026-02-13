@@ -1,0 +1,43 @@
+# Environment variables (contains API keys)
+.env
+
+# Docker volumes and data
+litellm_data/
+postgres_data/
+redis_data/
+prometheus_data/
+grafana_data/
+
+# Docker logs
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backups
+*.tar.gz
+*.zip
+backup-*/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
