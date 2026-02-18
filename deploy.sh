@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Kheti AI - LiteLLM Model Mesh Deployment Script
-# GitHub: https://github.com/akshatrathee/kheti-ai
+# Megalith - LiteLLM Model Mesh Deployment Script
+# GitHub: https://github.com/akshatrathee/megalith
 # Run this on your Raspberry Pi 5 or Mini PC
 
 set -e
 
 echo "======================================"
-echo "   Kheti AI - Deployment"
+echo "   Megalith - Deployment"
 echo "======================================"
 echo ""
 
@@ -88,7 +88,7 @@ docker-compose $PROFILE pull
 
 # Start services
 echo ""
-echo "🚀 Starting LiteLLM Model Mesh..."
+echo "🚀 Starting Megalith Model Mesh..."
 docker-compose $PROFILE up -d
 
 # Wait for services to be ready

@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Kheti AI - Initial Setup Script
+# Megalith - Initial Setup Script
 # Run this once after cloning the repository
 
 set -e
 
 echo "======================================"
-echo "   Kheti AI - Initial Setup"
+echo "   Megalith - Initial Setup"
 echo "======================================"
 echo ""
 
@@ -20,7 +20,7 @@ if [ -f .env ]; then
     fi
 fi
 
-echo "📋 This script will help you configure Kheti AI for first deployment."
+echo "📋 This script will help you configure Megalith for first deployment."
 echo ""
 
 # Create .env from template
@@ -58,11 +58,11 @@ fi
 # Generate secure master key
 echo ""
 echo "🔐 Generating secure LiteLLM master key..."
-MASTER_KEY="sk-kheti-$(openssl rand -hex 32)"
+MASTER_KEY="sk-megalith-$(openssl rand -hex 32)"
 sed -i "s|LITELLM_MASTER_KEY=.*|LITELLM_MASTER_KEY=$MASTER_KEY|g" .env
 
 # Generate secure PostgreSQL password
-PG_PASSWORD="kheti_pg_$(openssl rand -hex 16)"
+PG_PASSWORD="megalith_pg_$(openssl rand -hex 16)"
 sed -i "s|POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$PG_PASSWORD|g" .env
 
 echo "✅ Environment variables configured!"
