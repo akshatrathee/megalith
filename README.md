@@ -52,7 +52,7 @@ On your **Mac Studio M4 (Controller Node)**:
 
 ```bash
 # 1. Clone & Configure
-git clone https://github.com/akshatrathee/kheti-ai.git megalith
+git clone https://github.com/akshatrathee/megalith.git megalith
 cd megalith
 cp .env.example .env # Add your keys
 
